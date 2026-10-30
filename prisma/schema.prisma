@@ -1,0 +1,358 @@
+// DevPilot AI - Prisma Schema
+// Database models for users, repositories, code analysis, findings, and AI chat
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum FindingSeverity {
+  HIGH
+  MEDIUM
+  LOW
+  INFO
+}
+
+enum FindingCategory {
+  LOGIC
+  SECURITY
+  PERFORMANCE
+  ERROR_HANDLING
+  CODE_STYLE
+  MAINTAINABILITY
+  RESOURCE_MANAGEMENT
+  ASYNC
+}
+
+enum FindingStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+enum AnalysisSource {
+  STATIC_ESLINT
+  STATIC_ANALYZER
+  AI_GEMINI
+  AI_REVIEW
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  avatarUrl    String?
+  role         UserRole  @default(USER)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  projects         Project[]
+  sessions         AuthSession[]
+  githubAccounts   ConnectedGitHubAccount[]
+  conversations    Conversation[]
+  usageRecords     UsageRecord[]
+
+  @@map("users")
+}
+
+model AuthSession {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  userAgent  String?
+  ipAddress  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("auth_sessions")
+}
+
+model ConnectedGitHubAccount {
+  id                    String    @id @default(uuid())
+  userId                String
+  githubUserId          String
+  username              String
+  email                 String?
+  avatarUrl             String?
+  accessTokenEncrypted  String
+  refreshTokenEncrypted String?
+  tokenExpiresAt        DateTime?
+  scopes                String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  installations         RepositoryInstallation[]
+
+  @@unique([userId, githubUserId])
+  @@index([userId])
+  @@map("connected_github_accounts")
+}
+
+model RepositoryInstallation {
+  id                 String                  @id @default(uuid())
+  connectedAccountId String
+  installationId     String                  @unique
+  targetType         String                  @default("User")
+  accountLogin       String
+  accountId          String
+  permissionsJson    String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  account            ConnectedGitHubAccount  @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
+
+  @@index([connectedAccountId])
+  @@map("repository_installations")
+}
+
+model Project {
+  id            String    @id @default(uuid())
+  name          String
+  description   String?
+  ownerId       String
+  defaultBranch String    @default("main")
+  isArchived    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  owner         User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  repositories  Repository[]
+  analysisJobs  AnalysisJob[]
+  conversations Conversation[]
+  findings      Finding[]
+  usageRecords  UsageRecord[]
+
+  @@index([ownerId])
+  @@map("projects")
+}
+
+model Repository {
+  id               String    @id @default(uuid())
+  projectId        String
+  name             String
+  fullName         String
+  owner            String
+  defaultBranch    String    @default("main")
+  htmlUrl          String
+  cloneUrl         String?
+  isPrivate        Boolean   @default(false)
+  sizeKb           Int       @default(0)
+  stargazersCount  Int       @default(0)
+  forksCount       Int       @default(0)
+  openIssuesCount  Int       @default(0)
+  primaryLanguage  String?
+  languagesJson    String?
+  lastSyncedAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  project          Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  files            CodeFile[]
+  analysisJobs     AnalysisJob[]
+  findings         Finding[]
+
+  @@index([projectId])
+  @@index([fullName])
+  @@map("repositories")
+}
+
+model CodeFile {
+  id             String    @id @default(uuid())
+  repositoryId   String
+  path           String
+  filename       String
+  extension      String?
+  language       String?
+  sizeBytes      Int
+  lineCount      Int       @default(0)
+  hash           String
+  isIndexed      Boolean   @default(true)
+  contentPreview String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  repository     Repository @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  findings       Finding[]
+
+  @@unique([repositoryId, path])
+  @@index([repositoryId])
+  @@index([language])
+  @@index([path])
+  @@map("code_files")
+}
+
+model AnalysisJob {
+  id              String      @id @default(uuid())
+  projectId       String
+  repositoryId    String
+  commitSha       String
+  branch          String      @default("main")
+  status          JobStatus   @default(QUEUED)
+  progressPercent Int         @default(0)
+  currentStage    String?
+  queuedAt        DateTime    @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  errorReason     String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repository      Repository     @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  result          AnalysisResult?
+  findings        Finding[]
+
+  @@index([projectId])
+  @@index([repositoryId])
+  @@index([status])
+  @@index([commitSha])
+  @@map("analysis_jobs")
+}
+
+model AnalysisResult {
+  id                   String      @id @default(uuid())
+  jobId                String      @unique
+  projectId            String
+  staticFindingsCount  Int         @default(0)
+  aiFindingsCount      Int         @default(0)
+  totalFindingsCount   Int         @default(0)
+  highSeverityCount    Int         @default(0)
+  mediumSeverityCount  Int         @default(0)
+  lowSeverityCount     Int         @default(0)
+  infoSeverityCount    Int         @default(0)
+  durationMs           Int         @default(0)
+  summary              String?
+  metricsJson          String?
+  createdAt            DateTime    @default(now())
+
+  job                  AnalysisJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("analysis_results")
+}
+
+model Finding {
+  id             String          @id @default(uuid())
+  jobId          String
+  projectId      String
+  repositoryId   String
+  fileId         String?
+  filePath       String
+  startLine      Int
+  endLine        Int
+  startColumn    Int?
+  endColumn      Int?
+  title          String
+  description    String
+  category       FindingCategory
+  severity       FindingSeverity
+  confidence     String          @default("MEDIUM")
+  status         FindingStatus   @default(OPEN)
+  source         AnalysisSource
+  evidence       String?
+  explanation    String?
+  recommendedFix String?
+  proposedPatch  String?
+  fingerprint    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  job            AnalysisJob     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  project        Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  repository     Repository      @relation(fields: [repositoryId], references: [id], onDelete: Cascade)
+  codeFile       CodeFile?       @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+  @@index([projectId])
+  @@index([repositoryId])
+  @@index([severity])
+  @@index([status])
+  @@index([fingerprint])
+  @@index([filePath])
+  @@map("findings")
+}
+
+model Conversation {
+  id        String                @id @default(uuid())
+  projectId String
+  userId    String
+  title     String                @default("Repository Discussion")
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
+
+  project   Project               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ConversationMessage[]
+
+  @@index([projectId])
+  @@index([userId])
+  @@map("conversations")
+}
+
+model ConversationMessage {
+  id                   String       @id @default(uuid())
+  conversationId       String
+  role                 MessageRole
+  content              String
+  retrievedContextJson String?
+  tokensUsed           Int          @default(0)
+  createdAt            DateTime     @default(now())
+
+  conversation         Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("conversation_messages")
+}
+
+model UsageRecord {
+  id               String   @id @default(uuid())
+  userId           String
+  projectId        String?
+  action           String
+  modelName        String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  costUsd          Float    @default(0.0)
+  createdAt        DateTime @default(now())
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project          Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([projectId])
+  @@map("usage_records")
+}
+
