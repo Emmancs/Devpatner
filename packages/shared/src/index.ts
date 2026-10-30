@@ -79,6 +79,24 @@ export interface UserProfile {
   createdAt: string;
 }
 
+// Auth Requests & Responses
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  name: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponseData {
+  user: UserProfile;
+  accessToken: string;
+  expiresAt: string;
+}
+
 // Project summaries and details
 export interface ProjectSummary {
   id: string;
@@ -99,6 +117,12 @@ export interface ProjectSummary {
   };
   lastAnalysisStatus?: JobStatus | null;
   lastAnalysisAt?: string | null;
+}
+
+export interface CreateProjectRequest {
+  name: string;
+  description?: string;
+  defaultBranch?: string;
 }
 
 // Repository details
@@ -169,4 +193,3 @@ export interface HealthStatus {
     rssMB: number;
   };
 }
-
