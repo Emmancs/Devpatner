@@ -1,3 +1,4 @@
+
 # DevPilot AI
 
 DevPilot AI is a production-grade AI software engineering assistant engineered to help developers understand codebases, uncover architectural bugs, review pull requests and diffs, search source code with verifiable grounding, and generate actionable patch suggestions.
@@ -105,4 +106,7 @@ The backend provides a comprehensive diagnostic endpoint at `GET /api/v1/health`
 ```
 
 Swagger API documentation is hosted at `http://localhost:3001/api/docs`.
+
+# Devpatner
+Devpatner AI is an AI-powered developer platform that helps developers analyze GitHub repositories, detect potential bugs, review code quality, understand complex codebases, and generate intelligent code improvement suggestions. It uses repository access to provide secure, AI-driven code analysis and developer insights.
 
