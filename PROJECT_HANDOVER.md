@@ -11,7 +11,7 @@ The current repository is a TypeScript npm-workspace monorepo:
 - `packages/shared`: shared TypeScript enums and request/response interfaces.
 - `prisma`: PostgreSQL schema containing the planned identity, project, repository, analysis, finding, conversation, and usage entities.
 
-The currently implemented application workflow is authentication -> protected dashboard -> project workspace creation/list/detail. The repository and analysis workflows are represented in the schema and UI navigation but are not wired to backend functionality.
+The currently implemented application workflow is authentication -> protected dashboard -> project workspace creation/list/detail -> GitHub connection -> authorized repository attachment -> repository synchronization/file browsing.
 
 ## B. Completed features
 
@@ -26,14 +26,19 @@ The following features have source implementation and passed the available autom
 - Frontend login, registration, dashboard, project list, project creation, project detail, settings, and integration placeholder screens.
 - Global API response transformation, exception handling, correlation IDs, logging interceptor, Helmet, CORS, Swagger setup, and validation pipe.
 - Prisma schema generation/build compatibility.
+- GitHub OAuth authorization, encrypted access-token persistence, connection status, and authorized repository pagination.
+- Project-scoped repository attachment using metadata fetched from GitHub.
+- Secure source-file synchronization with ignored-directory filtering and file-count/size limits.
+- Project-scoped file listing/content retrieval with path traversal protection and read-only Monaco browsing.
+- Deterministic static analysis over authorized synchronized files, persisted analysis jobs/results/findings, history, and findings screens.
 
 The current working tree contains uncommitted inherited changes from the previous agent. They were not reset or overwritten during this audit.
 
 ## C. Partially completed features
 
-- Project detail UI renders repository/analysis sections and navigation, but repository attachment, analysis, files, findings, and chat routes do not have matching backend modules.
-- GitHub integration has environment variable names, database models, and a frontend placeholder, but no OAuth/App flow, token encryption service, repository API client, or sync endpoint.
-- Analysis and findings have database models and shared types, but no job creation, queue/worker, static analyzer, AI provider, finding management endpoints, or persistence workflow.
+- Project detail UI renders analysis/findings/chat navigation; static analysis, analysis history, and findings listing are implemented, while finding status mutation and AI analysis remain incomplete.
+- GitHub integration is implemented for OAuth and REST API access, but requires configured credentials and live database verification.
+- Analysis jobs, deterministic static analysis, persisted results, and project-scoped findings listing are implemented. Queue/worker execution, finding status mutation, and AI analysis remain incomplete.
 - Dashboard metrics are implemented against the current database models, but there is no populated repository/analysis workflow to produce meaningful production data.
 - Swagger is configured, but endpoint DTO metadata and documented error contracts are incomplete.
 
@@ -41,11 +46,8 @@ The current working tree contains uncommitted inherited changes from the previou
 
 Priority order based on the codebase:
 
-1. Implement GitHub account connection and repository selection/synchronization.
-2. Add repository browsing and persisted `CodeFile` indexing with project authorization.
-3. Implement analysis job creation/state transitions and deterministic static analysis.
-4. Implement structured, schema-validated AI analysis with timeouts, bounded context, prompt-injection defenses, and usage accounting.
-5. Add findings list/detail/status/update APIs and UI.
+1. Complete findings list/detail/status/update APIs and UI.
+2. Implement structured, schema-validated AI analysis with timeouts, bounded context, prompt-injection defenses, and usage accounting.
 6. Add repository-aware chat with grounded context and conversation persistence.
 7. Add analysis history, analytics, and production deployment documentation.
 8. Add frontend tests, API integration tests, migration files, and non-interactive lint configuration.
@@ -83,7 +85,7 @@ The API uses the `/api/v1` global prefix and returns transformed response envelo
 
 ### AI and external services
 
-The schema and environment template anticipate Gemini-compatible AI requests and GitHub OAuth/App integration. No AI provider client, GitHub client, repository sync service, queue, or analysis worker is currently implemented.
+The schema and environment template anticipate Gemini-compatible AI requests and Gemini AI remains unimplemented. GitHub OAuth, REST access, repository sync, and file browsing are implemented in `apps/api/src/github`.
 
 ## G. Environment requirements
 

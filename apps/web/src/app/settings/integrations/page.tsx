@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/features/auth/protected-route';
 import { useAuth } from '@/features/auth/auth-context';
+import { apiFetch, ApiClientError } from '@/lib/api-client';
+import { GitHubConnectionStatus } from '@devpilot/shared';
 import {
   ArrowLeft,
   Github,
@@ -16,6 +18,26 @@ import {
 
 export default function IntegrationsPage() {
   const { user } = useAuth();
+  const [status, setStatus] = useState<GitHubConnectionStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch<GitHubConnectionStatus>('/github/connection')
+      .then(setStatus)
+      .catch((err) => setError(err instanceof ApiClientError ? err.message : 'Unable to load GitHub connection status.'))
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const connectGitHub = async () => {
+    setError(null);
+    try {
+      const { authorizationUrl } = await apiFetch<{ authorizationUrl: string }>('/github/oauth/start');
+      window.location.assign(authorizationUrl);
+    } catch (err) {
+      setError(err instanceof ApiClientError ? err.message : 'Unable to start GitHub authorization.');
+    }
+  };
 
   return (
     <ProtectedRoute>
@@ -45,8 +67,10 @@ export default function IntegrationsPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold text-white text-base">GitHub App Integration</h3>
-                    <span className="px-2 py-0.5 rounded text-[10px] bg-sky-500/10 text-brand-blue border border-sky-500/20 font-medium">
-                      Phase 4 Ready
+                    <span className={`px-2 py-0.5 rounded text-[10px] border font-medium ${
+                      status?.connected ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-sky-500/10 text-brand-blue border-sky-500/20'
+                    }`}>
+                      {status?.connected ? `Connected as ${status.username}` : 'Not connected'}
                     </span>
                   </div>
                   <p className="text-xs text-gray-400 mt-1 max-w-xl leading-relaxed">
@@ -57,13 +81,20 @@ export default function IntegrationsPage() {
 
               <div>
                 <button
-                  onClick={() => alert('GitHub OAuth & App authorization pipeline is active in Phase 4.')}
+                  onClick={connectGitHub}
+                  disabled={isLoading || status?.connected}
                   className="px-4 py-2 rounded-lg bg-surface-50 hover:bg-surface-border border border-surface-border text-white text-xs font-medium flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
                 >
-                  <Github className="w-4 h-4" /> Connect GitHub
+                  <Github className="w-4 h-4" /> {status?.connected ? 'GitHub Connected' : 'Connect GitHub'}
                 </button>
               </div>
             </div>
+
+            {error && (
+              <div className="p-4 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-sm">
+                {error}
+              </div>
+            )}
 
             {/* Security Guarantee Card */}
             <div className="p-5 rounded-xl border border-surface-border bg-surface-200/50 flex items-start gap-3 text-xs text-gray-400">
@@ -79,4 +110,3 @@ export default function IntegrationsPage() {
     </ProtectedRoute>
   );
 }
-

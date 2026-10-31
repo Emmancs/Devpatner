@@ -6,7 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/features/auth/protected-route';
 import { useAuth } from '@/features/auth/auth-context';
 import { apiFetch } from '@/lib/api-client';
-import { ProjectDetail } from '@devpilot/shared';
+import { GitHubRepositoryOption, ProjectDetail } from '@devpilot/shared';
 import { formatDate, formatBytes } from '@/lib/utils';
 import {
   ArrowLeft,
@@ -37,6 +37,11 @@ export default function ProjectOverviewPage() {
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [githubRepositories, setGithubRepositories] = useState<GitHubRepositoryOption[]>([]);
+  const [showRepositoryPicker, setShowRepositoryPicker] = useState(false);
+  const [isAttaching, setIsAttaching] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisMessage, setAnalysisMessage] = useState<string | null>(null);
 
   const fetchProject = async () => {
     setIsLoading(true);
@@ -56,6 +61,53 @@ export default function ProjectOverviewPage() {
       fetchProject();
     }
   }, [projectId]);
+
+  const openRepositoryPicker = async () => {
+    setShowRepositoryPicker(true);
+    try {
+      const response = await apiFetch<{ items: GitHubRepositoryOption[] }>('/github/repositories');
+      setGithubRepositories(response.items);
+    } catch (err) {
+      setError((err as Error).message || 'Connect GitHub before attaching a repository.');
+    }
+  };
+
+  const attachRepository = async (fullName: string) => {
+    setIsAttaching(true);
+    try {
+      await apiFetch(`/projects/${projectId}/repositories`, {
+        method: 'POST',
+        body: JSON.stringify({ fullName }),
+      });
+      setShowRepositoryPicker(false);
+      await fetchProject();
+    } catch (err) {
+      setError((err as Error).message || 'Unable to attach repository.');
+    } finally {
+      setIsAttaching(false);
+    }
+  };
+
+  const startAnalysis = async () => {
+    if (!primaryRepo) {
+      setAnalysisMessage('Attach and synchronize a repository before starting analysis.');
+      return;
+    }
+    setIsAnalyzing(true);
+    setAnalysisMessage(null);
+    try {
+      await apiFetch(`/projects/${projectId}/repositories/${primaryRepo.id}/analysis`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      setAnalysisMessage('Static analysis completed.');
+      await fetchProject();
+    } catch (err) {
+      setAnalysisMessage((err as Error).message || 'Static analysis failed.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -157,13 +209,20 @@ export default function ProjectOverviewPage() {
                 </Link>
 
                 <button
-                  onClick={() => alert('Repository analysis engine initialized in Phase 5.')}
-                  className="px-4 py-2 rounded-lg bg-brand-blue hover:bg-sky-500 text-white text-xs font-medium flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+                  onClick={startAnalysis}
+                  disabled={isAnalyzing}
+                  className="px-4 py-2 rounded-lg bg-brand-blue hover:bg-sky-500 disabled:opacity-50 text-white text-xs font-medium flex items-center gap-2 shadow-sm transition-all cursor-pointer"
                 >
-                  <PlayCircle className="w-3.5 h-3.5" /> Start Analysis
+                  {isAnalyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <PlayCircle className="w-3.5 h-3.5" />} {isAnalyzing ? 'Analyzing...' : 'Start Analysis'}
                 </button>
               </div>
             </div>
+
+            {analysisMessage && (
+              <div className="mt-4 p-3 rounded-lg border border-sky-500/20 bg-sky-500/10 text-sky-300 text-xs">
+                {analysisMessage}
+              </div>
+            )}
 
             {/* Navigation Tabs */}
             <div className="flex items-center gap-1 mt-8 border-b border-surface-border -mb-8 text-xs font-medium">
@@ -247,12 +306,33 @@ export default function ProjectOverviewPage() {
                 Connected Repositories ({project.repositories.length})
               </h2>
               <button
-                onClick={() => router.push('/settings/integrations')}
+                onClick={openRepositoryPicker}
                 className="px-3 py-1.5 rounded-lg border border-surface-border bg-surface-100 hover:bg-surface-50 text-white text-xs font-medium flex items-center gap-1.5 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> Connect Repository
               </button>
             </div>
+
+            {showRepositoryPicker && (
+              <div className="mb-4 p-4 rounded-xl border border-surface-border bg-surface-100">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-white">Select an authorized GitHub repository</h3>
+                  <button onClick={() => setShowRepositoryPicker(false)} className="text-xs text-gray-400 hover:text-white">Close</button>
+                </div>
+                {githubRepositories.length === 0 ? (
+                  <p className="text-xs text-gray-400">No repositories available. Connect GitHub or check your authorization scopes.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-64 overflow-auto">
+                    {githubRepositories.map((repo) => (
+                      <button key={repo.id} disabled={isAttaching} onClick={() => attachRepository(repo.fullName)} className="text-left p-3 rounded-lg border border-surface-border hover:border-brand-blue/50 hover:bg-surface-50 disabled:opacity-50">
+                        <span className="block text-sm font-medium text-white">{repo.fullName}</span>
+                        <span className="text-xs text-gray-400">{repo.isPrivate ? 'Private' : 'Public'} · {repo.defaultBranch}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {project.repositories.length > 0 ? (
               <div className="space-y-3">
@@ -379,4 +459,3 @@ export default function ProjectOverviewPage() {
     </ProtectedRoute>
   );
 }
-

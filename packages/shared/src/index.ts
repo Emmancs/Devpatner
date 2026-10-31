@@ -153,6 +153,48 @@ export interface RepositorySummary {
   updatedAt: string;
 }
 
+export interface GitHubConnectionStatus {
+  connected: boolean;
+  username?: string;
+  avatarUrl?: string | null;
+  scopes?: string | null;
+}
+
+export interface GitHubRepositoryOption {
+  id: number;
+  name: string;
+  fullName: string;
+  owner: string;
+  defaultBranch: string;
+  htmlUrl: string;
+  cloneUrl?: string | null;
+  isPrivate: boolean;
+  sizeKb: number;
+  stargazersCount: number;
+  forksCount: number;
+  openIssuesCount: number;
+  primaryLanguage?: string | null;
+}
+
+export interface RepositoryFileEntry {
+  path: string;
+  filename: string;
+  extension?: string | null;
+  language?: string | null;
+  sizeBytes: number;
+  lineCount: number;
+  isEligible: boolean;
+}
+
+export interface RepositoryFileContent {
+  path: string;
+  content: string;
+  language?: string | null;
+  sizeBytes: number;
+  lineCount: number;
+  truncated: boolean;
+}
+
 // Analysis Job Summary
 export interface AnalysisJobSummary {
   id: string;

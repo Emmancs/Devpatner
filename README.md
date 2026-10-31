@@ -107,6 +107,11 @@ The backend provides a comprehensive diagnostic endpoint at `GET /api/v1/health`
 
 Swagger API documentation is hosted at `http://localhost:3001/api/docs`.
 
+### GitHub repository workflow
+
+Set `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_CALLBACK_URL`, `JWT_SECRET`, and `ENCRYPTION_KEY` to enable the protected GitHub OAuth flow. After connecting GitHub from **Settings > Repository Integrations**, attach an authorized repository from a project workspace and open **Files** to synchronize eligible source files and browse them in the read-only Monaco editor.
+
+Repository access is project-scoped and uses GitHub API metadata rather than client-supplied repository details. Synchronization excludes generated/vendor directories and enforces `MAX_FILES_PER_ANALYSIS` and `MAX_FILE_SIZE_KB`. A live PostgreSQL database and GitHub OAuth application are required for end-to-end verification.
+
 # Devpatner
 Devpatner AI is an AI-powered developer platform that helps developers analyze GitHub repositories, detect potential bugs, review code quality, understand complex codebases, and generate intelligent code improvement suggestions. It uses repository access to provide secure, AI-driven code analysis and developer insights.
-

@@ -185,6 +185,7 @@ model Repository {
 
   @@index([projectId])
   @@index([fullName])
+  @@unique([projectId, fullName])
   @@map("repositories")
 }
 
@@ -355,4 +356,3 @@ model UsageRecord {
   @@index([projectId])
   @@map("usage_records")
 }
-
