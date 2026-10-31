@@ -98,6 +98,14 @@ export interface AuthResponseData {
 }
 
 // Project summaries and details
+export interface FindingsCountSummary {
+  high: number;
+  medium: number;
+  low: number;
+  info: number;
+  total: number;
+}
+
 export interface ProjectSummary {
   id: string;
   name: string;
@@ -107,14 +115,8 @@ export interface ProjectSummary {
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
-  repositoriesCount?: number;
-  findingsCount?: {
-    high: number;
-    medium: number;
-    low: number;
-    info: number;
-    total: number;
-  };
+  repositoriesCount: number;
+  findingsCount: FindingsCountSummary;
   lastAnalysisStatus?: JobStatus | null;
   lastAnalysisAt?: string | null;
 }
@@ -123,6 +125,13 @@ export interface CreateProjectRequest {
   name: string;
   description?: string;
   defaultBranch?: string;
+}
+
+export interface UpdateProjectRequest {
+  name?: string;
+  description?: string;
+  defaultBranch?: string;
+  isArchived?: boolean;
 }
 
 // Repository details
@@ -134,12 +143,47 @@ export interface RepositorySummary {
   owner: string;
   defaultBranch: string;
   htmlUrl: string;
+  cloneUrl?: string | null;
   isPrivate: boolean;
   sizeKb: number;
   primaryLanguage?: string | null;
   languages?: Record<string, number>;
   lastSyncedAt?: string | null;
   createdAt: string;
+  updatedAt: string;
+}
+
+// Analysis Job Summary
+export interface AnalysisJobSummary {
+  id: string;
+  projectId: string;
+  repositoryId: string;
+  commitSha: string;
+  branch: string;
+  status: JobStatus;
+  progressPercent: number;
+  currentStage?: string | null;
+  queuedAt: string;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  errorReason?: string | null;
+  totalFindings?: number;
+  highSeverity?: number;
+  durationMs?: number;
+}
+
+export interface ProjectDetail extends ProjectSummary {
+  repositories: RepositorySummary[];
+  recentAnalyses: AnalysisJobSummary[];
+}
+
+// Dashboard overall metrics
+export interface DashboardMetrics {
+  totalRepositories: number;
+  totalAnalyses: number;
+  findingsBySeverity: FindingsCountSummary;
+  recentProjects: ProjectSummary[];
+  recentAnalyses: AnalysisJobSummary[];
 }
 
 // Finding detail

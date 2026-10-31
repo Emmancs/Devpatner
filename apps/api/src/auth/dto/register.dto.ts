@@ -28,3 +28,4 @@ export class RegisterDto {
   @MaxLength(100, { message: 'Name cannot exceed 100 characters' })
   name: string;
 }
+
