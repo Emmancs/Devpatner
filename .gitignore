@@ -43,3 +43,6 @@ test-results/
 tmp/
 temp/
 
+# Local agent handover documents
+PROJECT_HANDOVER.md
+IMPLEMENTATION_PROGRESS.md
