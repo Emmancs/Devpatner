@@ -20,6 +20,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { GithubService } from '../github/github.service';
 import { StaticAnalyzerService } from './static-analyzer.service';
+import { AiService } from '../ai/ai.service';
 import { CreateAnalysisDto } from './dto/create-analysis.dto';
 
 @Injectable()
@@ -28,6 +29,7 @@ export class AnalysisService {
     private readonly prisma: PrismaService,
     private readonly github: GithubService,
     private readonly analyzer: StaticAnalyzerService,
+    private readonly aiService: AiService,
     private readonly config: ConfigService
   ) {}
 
@@ -75,12 +77,15 @@ export class AnalysisService {
       const maxFiles = Number(this.config.get<string>('MAX_FILES_PER_ANALYSIS') || 250);
       const files = repository.files.slice(0, maxFiles);
       const findings: Prisma.FindingCreateManyInput[] = [];
+      const fetchedFiles: { path: string; content: string; fileId: string }[] = [];
 
       for (const [index, file] of files.entries()) {
         const remote = await this.github.getContent(userId, repository.fullName, file.path, branch);
         const content = remote.encoding === 'base64'
           ? Buffer.from((remote.content || '').replace(/\s/g, ''), 'base64').toString('utf8')
           : remote.content || '';
+        fetchedFiles.push({ path: file.path, content, fileId: file.id });
+
         for (const finding of this.analyzer.analyze(file.path, content)) {
           findings.push({
             ...finding,
@@ -97,11 +102,28 @@ export class AnalysisService {
           await this.prisma.analysisJob.update({
             where: { id: job.id },
             data: {
-              progressPercent: Math.min(95, Math.round(((index + 1) / files.length) * 90) + 5),
+              progressPercent: Math.min(85, Math.round(((index + 1) / files.length) * 80) + 5),
               currentStage: 'ANALYZING_SOURCE',
             },
           });
         }
+      }
+
+      let aiFindingsCount = 0;
+      if (this.aiService.isConfigured() && fetchedFiles.length > 0) {
+        await this.prisma.analysisJob.update({
+          where: { id: job.id },
+          data: { progressPercent: 90, currentStage: 'AI_SEMANTIC_REVIEW' },
+        });
+        const aiFiles = fetchedFiles.slice(0, 10);
+        const aiFindings = await this.aiService.analyzeFiles(
+          userId,
+          projectId,
+          repositoryId,
+          job.id,
+          aiFiles
+        );
+        aiFindingsCount = aiFindings.length;
       }
 
       const counts = findings.reduce(
@@ -125,14 +147,19 @@ export class AnalysisService {
             jobId: job.id,
             projectId,
             staticFindingsCount: counts.total,
-            totalFindingsCount: counts.total,
+            aiFindingsCount,
+            totalFindingsCount: counts.total + aiFindingsCount,
             highSeverityCount: counts.high,
             mediumSeverityCount: counts.medium,
             lowSeverityCount: counts.low,
             infoSeverityCount: counts.info,
             durationMs: Date.now() - startedAt,
-            summary: `Static analysis completed across ${files.length} synchronized files.`,
-            metricsJson: JSON.stringify({ filesAnalyzed: files.length, filesAvailable: repository.files.length }),
+            summary: `Dual-engine analysis completed across ${files.length} synchronized files (${counts.total} static, ${aiFindingsCount} AI).`,
+            metricsJson: JSON.stringify({
+              filesAnalyzed: files.length,
+              filesAvailable: repository.files.length,
+              aiAssisted: this.aiService.isConfigured(),
+            }),
           },
         });
         await transaction.analysisJob.update({

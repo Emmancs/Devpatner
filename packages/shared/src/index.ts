@@ -254,6 +254,96 @@ export interface FindingItem {
   createdAt: string;
 }
 
+// AI Code Explanation
+export interface CodeExplanationRequest {
+  filePath: string;
+  code: string;
+  startLine?: number;
+  endLine?: number;
+}
+
+export interface CodeExplanationResponse {
+  summary: string;
+  stepByStep: string[];
+  inputsOutputs: string;
+  dependencies: string[];
+  edgeCases: string[];
+  performanceConcerns: string[];
+  suggestedImprovements: string[];
+}
+
+// AI Fix Suggestion
+export interface SuggestFixRequest {
+  findingId: string;
+}
+
+export interface SuggestFixResponse {
+  findingId: string;
+  filePath?: string;
+  explanation: string;
+  proposedPatch: string;
+  originalCodeSnippet?: string;
+  fixedCodeSnippet?: string;
+  isValidPatch: boolean;
+}
+
+// Codebase Chat
+export interface CodeReference {
+  filePath: string;
+  lineRange?: string;
+  startLine?: number;
+  endLine?: number;
+  snippet?: string;
+  excerpt?: string;
+}
+
+export interface CodebaseChatRequest {
+  message: string;
+  conversationId?: string;
+}
+
+export interface CodebaseChatResponse {
+  conversationId: string;
+  answer: string;
+  reply?: string;
+  references: CodeReference[];
+  tokensUsed: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'USER' | 'ASSISTANT' | 'SYSTEM';
+  content: string;
+  references?: CodeReference[];
+  createdAt: string;
+}
+
+// Finding Status Update
+export interface UpdateFindingStatusRequest {
+  status: FindingStatus;
+}
+
+// Repository Analytics
+export interface RepositoryAnalytics {
+  projectId: string;
+  languageDistribution: Record<string, number>;
+  fileCount: number;
+  totalSizeBytes: number;
+  findingsBySeverity: FindingsCountSummary;
+  findingsByCategory: Record<string, number>;
+  analysisTrends: {
+    jobId: string;
+    timestamp: string;
+    findingsCount: number;
+    durationMs: number;
+    commitSha: string;
+  }[];
+  staticVsAi: {
+    staticCount: number;
+    aiCount: number;
+  };
+}
+
 // Health status response
 export interface HealthStatus {
   status: 'ok' | 'degraded' | 'error';

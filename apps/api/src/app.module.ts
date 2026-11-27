@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { ProjectsModule } from './projects/projects.module';
 import { GithubModule } from './github/github.module';
 import { AnalysisModule } from './analysis/analysis.module';
+import { AiModule } from './ai/ai.module';
 import { CorrelationIdMiddleware } from './common/middleware/correlation-id.middleware';
 
 @Module({
@@ -20,6 +21,7 @@ import { CorrelationIdMiddleware } from './common/middleware/correlation-id.midd
     ProjectsModule,
     GithubModule,
     AnalysisModule,
+    AiModule,
   ],
 })
 export class AppModule implements NestModule {
